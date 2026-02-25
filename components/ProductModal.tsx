@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { X, Save, Bot, Settings, DollarSign } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface ProductModalProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ProductModalProps {
 }
 
 const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, product, onSave }) => {
+  const { profile } = useAuth();
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     platform: 'hotmart',
@@ -94,11 +96,11 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, onClose, product, o
                 <p className="text-xs text-blue-600 mb-2">Copie esta URL e configure na sua plataforma ({formData.platform}) para eventos de "Abandono de Carrinho" e "Compra Aprovada".</p>
                 <div className="flex items-center gap-2">
                     <code className="flex-1 bg-white px-3 py-2 rounded border border-blue-200 text-xs font-mono text-slate-600 break-all">
-                        {window.location.origin}/api/webhooks/{product.clientId || 'CLIENT_ID'}
+                        {window.location.origin}/api/webhooks/{product.clientId || profile?.id || 'CLIENT_ID'}
                     </code>
-                    <button 
+                    <button
                         type="button"
-                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/${product.clientId || 'CLIENT_ID'}`)}
+                        onClick={() => navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/${product.clientId || profile?.id || 'CLIENT_ID'}`)}
                         className="p-2 bg-white border border-blue-200 rounded hover:bg-blue-100 text-blue-600"
                         title="Copiar"
                     >

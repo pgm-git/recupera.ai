@@ -5,8 +5,10 @@ import { getProducts, toggleProductStatus, saveProductConfig } from '../services
 import { Product } from '../types';
 import { Plus, Search, Filter } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 const Products: React.FC = () => {
+  const { profile } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -55,7 +57,7 @@ const Products: React.FC = () => {
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
     try {
-        const savedProduct = await saveProductConfig(productData);
+        const savedProduct = await saveProductConfig(productData, profile?.id);
         
         if (savedProduct) {
             // Se for edição, atualiza na lista

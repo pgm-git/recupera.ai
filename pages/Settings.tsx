@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import QRModal from '../components/QRModal';
 import { Smartphone, Link, Key, Save, AlertCircle, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 const Settings: React.FC = () => {
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [webhookCopied, setWebhookCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'integrations' | 'api' | 'account'>('integrations');
-  
-  // Em um app real, pegamos o ID do usuário logado
-  const [userId, setUserId] = useState<string>("user-id-placeholder");
+  const { profile } = useAuth();
+
+  const userId = profile?.id || "user-id-placeholder";
 
   const webhookUrl = `https://api.recupa.ai/api/webhooks/hotmart/${userId}`;
 

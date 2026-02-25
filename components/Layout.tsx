@@ -1,6 +1,7 @@
 import React from 'react';
 import { LayoutDashboard, ShoppingBag, Settings, LogOut, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,16 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
+
+  const userInitials = profile?.name
+    ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
 
   const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
@@ -49,14 +60,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="p-4 border-t border-slate-100">
            <div className="flex items-center space-x-3 px-4 py-3 text-sm text-slate-600">
              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
-               <span className="font-semibold text-xs">US</span>
+               <span className="font-semibold text-xs">{userInitials}</span>
              </div>
              <div className="flex flex-col">
-               <span className="font-medium text-slate-900">Usuario Demo</span>
-               <span className="text-xs text-slate-500">demo@recupa.ai</span>
+               <span className="font-medium text-slate-900">{profile?.name || 'Usuario'}</span>
+               <span className="text-xs text-slate-500">{profile?.email || ''}</span>
              </div>
            </div>
-           <button className="w-full flex items-center space-x-3 px-4 py-2 mt-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+           <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-2 mt-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+           >
             <LogOut size={18} />
             <span>Sair</span>
            </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, RefreshCw, Smartphone, CheckCircle } from 'lucide-react';
 import { connectInstance, checkInstanceStatus } from '../services/apiService';
+import { useAuth } from '../hooks/useAuth';
 
 interface QRModalProps {
   isOpen: boolean;
@@ -12,9 +13,9 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose }) => {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [status, setStatus] = useState<'waiting' | 'scanned' | 'connected'>('waiting');
   const pollingRef = useRef<number | null>(null);
-  
-  // Em produção, isso viria do Context de Autenticação
-  const mockClientId = "user-id-placeholder";
+  const { profile } = useAuth();
+
+  const clientId = profile?.id || "user-id-placeholder";
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +25,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose }) => {
       setStatus('waiting');
       
       // 1. Pede ao Backend Python para iniciar sessão na UAZAPI
-      connectInstance(mockClientId).then((data) => {
+      connectInstance(clientId).then((data) => {
         if(mounted && data.qrCodeBase64) {
             setQrCode(data.qrCodeBase64);
             setLoading(false);
@@ -32,7 +33,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose }) => {
             // 2. Polling: Pergunta ao Backend Python se conectou
             pollingRef.current = window.setInterval(async () => {
                 try {
-                    const statusData = await checkInstanceStatus(mockClientId);
+                    const statusData = await checkInstanceStatus(clientId);
                     if (statusData.status === 'connected') {
                         setStatus('connected');
                         if(pollingRef.current) clearInterval(pollingRef.current);

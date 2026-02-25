@@ -100,7 +100,7 @@ export const checkConnectionStatus = async (): Promise<'connected' | 'disconnect
    return 'disconnected';
 };
 
-export const saveProductConfig = async (product: Partial<Product>) => {
+export const saveProductConfig = async (product: Partial<Product>, userId?: string) => {
   if (!isSupabaseConfigured()) {
      // Mock implementation for demo mode
      // Returns a product with a fake ID so the UI can display it
@@ -131,6 +131,11 @@ export const saveProductConfig = async (product: Partial<Product>) => {
       delete dbPayload.id;
   }
 
+  // Set client_id from authenticated user for new inserts (required by RLS)
+  if (!dbPayload.client_id && userId) {
+    dbPayload.client_id = userId;
+  }
+
   if(product.isActive !== undefined) dbPayload.is_active = product.isActive;
   if(product.agentPersona !== undefined) dbPayload.agent_persona = product.agentPersona;
   if(product.delayMinutes !== undefined) dbPayload.delay_minutes = product.delayMinutes;
@@ -147,6 +152,7 @@ export const saveProductConfig = async (product: Partial<Product>) => {
   delete dbPayload.abandonedCount;
   delete dbPayload.recoveredCount;
   delete dbPayload.revenue;
+  delete dbPayload.clientId;
   delete dbPayload.productName; // Cleanup potential extra fields
 
   const { data, error } = await supabase
