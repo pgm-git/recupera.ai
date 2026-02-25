@@ -5,18 +5,24 @@ import ai_handler # Importando o módulo criado
 import httpx
 import asyncio
 
+# Validate required env vars
+_required_env = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "UAZAPI_BASE_URL", "UAZAPI_API_KEY"]
+for _var in _required_env:
+    if not os.environ.get(_var):
+        raise RuntimeError(f"Missing required environment variable: {_var}")
+
 # Configuração Celery
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 celery = Celery("tasks", broker=redis_url, backend=redis_url)
 
 # Supabase Client
-url: str = os.environ.get("SUPABASE_URL", "https://epqtoaluztqldddskorj.supabase.co")
-key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_Szo7xCIdztMap1TYOvF60w_5XcZEIVr")
+url: str = os.environ["SUPABASE_URL"]
+key: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 supabase = create_client(url, key)
 
 # UAZAPI Config
-UAZAPI_BASE_URL = os.environ.get("UAZAPI_BASE_URL", "https://pgmventures.uazapi.com")
-UAZAPI_API_KEY = os.environ.get("UAZAPI_API_KEY", "no6pZaVQ93FRBB7cQqp6IMj6Jt6w4L93vKt02Men0EW0FCRRVF")
+UAZAPI_BASE_URL = os.environ["UAZAPI_BASE_URL"]
+UAZAPI_API_KEY = os.environ["UAZAPI_API_KEY"]
 
 async def send_whatsapp_async(instance_key: str, phone: str, message: str):
     """Função auxiliar assíncrona para envio"""

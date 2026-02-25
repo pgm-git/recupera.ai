@@ -11,28 +11,30 @@ import ai_handler # Importa nosso novo handler robusto
 # Inicializa App
 app = FastAPI(title="Recupa.ai Backend")
 
-# Configuração de CORS para permitir requisições do Frontend (localhost:3000)
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "*" # Para facilitar o desenvolvimento/preview
-]
+# Configuração de CORS
+cors_origin = os.environ.get("CORS_ORIGIN", "http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=[cors_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Validate required env vars
+_required_env = ["UAZAPI_BASE_URL", "UAZAPI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+for _var in _required_env:
+    if not os.environ.get(_var):
+        raise RuntimeError(f"Missing required environment variable: {_var}")
+
 # Configurações UAZAPI
-UAZAPI_BASE_URL = os.environ.get("UAZAPI_BASE_URL", "https://pgmventures.uazapi.com")
-UAZAPI_API_KEY = os.environ.get("UAZAPI_API_KEY", "no6pZaVQ93FRBB7cQqp6IMj6Jt6w4L93vKt02Men0EW0FCRRVF")
+UAZAPI_BASE_URL = os.environ["UAZAPI_BASE_URL"]
+UAZAPI_API_KEY = os.environ["UAZAPI_API_KEY"]
 
 # Supabase Admin
-url: str = os.environ.get("SUPABASE_URL", "https://epqtoaluztqldddskorj.supabase.co")
-key: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_Szo7xCIdztMap1TYOvF60w_5XcZEIVr")
+url: str = os.environ["SUPABASE_URL"]
+key: str = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 supabase: Client = create_client(url, key)
 
 # --- MODELS ---

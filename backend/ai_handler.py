@@ -5,14 +5,20 @@ import httpx
 from typing import List, Dict, Any
 from supabase import create_client, Client
 
-# Configurações
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-UAZAPI_BASE_URL = os.environ.get("UAZAPI_BASE_URL", "https://pgmventures.uazapi.com")
-UAZAPI_API_KEY = os.environ.get("UAZAPI_API_KEY", "no6pZaVQ93FRBB7cQqp6IMj6Jt6w4L93vKt02Men0EW0FCRRVF")
+# Validate required env vars
+_required_env = ["OPENAI_API_KEY", "UAZAPI_BASE_URL", "UAZAPI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+for _var in _required_env:
+    if not os.environ.get(_var):
+        raise RuntimeError(f"Missing required environment variable: {_var}")
 
-# Supabase Setup (Reutilizando variáveis de ambiente)
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://epqtoaluztqldddskorj.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "sb_publishable_Szo7xCIdztMap1TYOvF60w_5XcZEIVr")
+# Configurações
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+UAZAPI_BASE_URL = os.environ["UAZAPI_BASE_URL"]
+UAZAPI_API_KEY = os.environ["UAZAPI_API_KEY"]
+
+# Supabase Setup
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 openai.api_key = OPENAI_API_KEY

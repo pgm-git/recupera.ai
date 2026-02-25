@@ -1,12 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Chaves fornecidas pelo usuário
-const supabaseUrl = (window as any)._env_?.SUPABASE_URL || 'https://epqtoaluztqldddskorj.supabase.co';
-const supabaseKey = (window as any)._env_?.SUPABASE_ANON_KEY || 'sb_publishable_Szo7xCIdztMap1TYOvF60w_5XcZEIVr';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.');
+}
+
+export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
 
 // Helper para verificar se o supabase está configurado
 export const isSupabaseConfigured = () => {
-  return supabaseUrl !== 'https://placeholder.supabase.co';
+  return !!supabaseUrl && !!supabaseKey;
 };

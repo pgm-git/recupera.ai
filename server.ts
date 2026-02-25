@@ -11,17 +11,27 @@ const app = express();
 const PORT = 3000;
 
 // Middleware
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
 
+// Validate required env vars
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'UAZAPI_BASE_URL', 'UAZAPI_API_KEY'];
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
+
 // Supabase Client
-const supabaseUrl = process.env.SUPABASE_URL || 'https://epqtoaluztqldddskorj.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_publishable_Szo7xCIdztMap1TYOvF60w_5XcZEIVr';
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // UAZAPI Config
-const UAZAPI_BASE_URL = process.env.UAZAPI_BASE_URL || 'https://pgmventures.uazapi.com';
-const UAZAPI_API_KEY = process.env.UAZAPI_API_KEY || 'no6pZaVQ93FRBB7cQqp6IMj6Jt6w4L93vKt02Men0EW0FCRRVF';
+const UAZAPI_BASE_URL = process.env.UAZAPI_BASE_URL!;
+const UAZAPI_API_KEY = process.env.UAZAPI_API_KEY!;
 
 // --- API Routes ---
 
