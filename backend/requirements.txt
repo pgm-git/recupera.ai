@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+supabase
+celery
+redis
+python-dotenv
+httpx
+openai
+pydantic
