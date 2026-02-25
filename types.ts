@@ -1,10 +1,11 @@
-export type LeadStatus = 'pending_recovery' | 'queued' | 'contacted' | 'converted_organically' | 'recovered_by_ai' | 'failed';
+export type LeadStatus = 'pending_recovery' | 'queued' | 'contacted' | 'in_conversation' | 'converted_organically' | 'recovered_by_ai' | 'failed' | 'escalated' | 'do_not_contact';
 
 export interface Client {
   id: string;
   email: string;
   name: string;
   apiKey: string;
+  updatedAt?: string;
 }
 
 export interface Instance {
@@ -30,6 +31,8 @@ export interface Product {
   abandonedCount?: number;
   recoveredCount?: number;
   revenue?: number;
+  updatedAt?: string;
+  deletedAt?: string;
 }
 
 export interface Lead {
@@ -44,6 +47,12 @@ export interface Lead {
   value?: number;
   productName?: string;
   createdAt: string;
+  updatedAt?: string;
+  phoneNormalized?: string;
+  recoveryAttempts?: number;
+  nextContactScheduledAt?: string;
+  conversationSummary?: string;
+  detectedObjections?: string[];
 }
 
 export interface Metric {

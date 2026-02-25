@@ -11,7 +11,13 @@ const mapLead = (data: any): Lead => ({
   status: data.status,
   productName: data.product_name,
   value: Number(data.value),
-  createdAt: data.created_at
+  createdAt: data.created_at,
+  updatedAt: data.updated_at,
+  phoneNormalized: data.phone_normalized,
+  recoveryAttempts: data.recovery_attempts,
+  nextContactScheduledAt: data.next_contact_scheduled_at,
+  conversationSummary: data.conversation_summary,
+  detectedObjections: data.detected_objections
 });
 
 const mapProduct = (data: any): Product => ({
@@ -26,7 +32,9 @@ const mapProduct = (data: any): Product => ({
   externalProductId: data.external_product_id,
   abandonedCount: data.abandoned_count || Math.floor(Math.random() * 50) + 10, // Mock for demo
   recoveredCount: data.recovered_count || Math.floor(Math.random() * 10) + 1, // Mock for demo
-  revenue: data.revenue || Math.floor(Math.random() * 5000) + 1000 // Mock for demo
+  revenue: data.revenue || Math.floor(Math.random() * 5000) + 1000, // Mock for demo
+  updatedAt: data.updated_at,
+  deletedAt: data.deleted_at
 });
 
 export const getLeads = async (): Promise<Lead[]> => {
