@@ -1,0 +1,22 @@
+{
+    "name":  "@aios-fullstack/expansion-creator",
+    "version":  "1.0.0",
+    "description":  "Expansion Creator Pack - Tools for creating and managing AIOS expansion packs",
+    "main":  "index.js",
+    "scripts":  {
+                    "install:expansion":  "echo \u0027Use the tasks in this pack to install other expansion packs\u0027"
+                },
+    "keywords":  [
+                     "aios",
+                     "aios-fullstack",
+                     "expansion-pack",
+                     "expansion-creator",
+                     "tools"
+                 ],
+    "author":  "AIOS Team",
+    "license":  "MIT",
+    "repository":  "git+ssh://git@private.repo",
+    "engines":  {
+                    "node":  "\u003e=18.0.0"
+                }
+}
