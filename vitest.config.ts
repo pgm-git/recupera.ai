@@ -9,7 +9,7 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['server.ts', 'express-app.ts', 'services/**/*.ts', 'lib/**/*.ts'],
+      include: ['server.ts', 'express-app.ts', 'services/**/*.ts', 'lib/**/*.ts', 'schemas/**/*.ts', 'middleware/**/*.ts'],
       thresholds: {
         statements: 30,
       },

@@ -28,6 +28,19 @@ vi.mock('axios', () => ({
   },
 }));
 
+vi.mock('../../services/aiHandler', () => ({
+  processConversationStep: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../services/queueService', () => ({
+  scheduleRecovery: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+  createRequestLogger: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 import { app } from '../../express-app';
 
 describe('Input Validation', () => {
@@ -65,6 +78,7 @@ describe('Input Validation', () => {
       .send({});
 
     expect(res.status).toBe(200);
-    expect(res.body.status).toBe('processing');
+    expect(res.body.status).toBe('ignored');
+    expect(res.body.reason).toBe('no_message_data');
   });
 });

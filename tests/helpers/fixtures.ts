@@ -50,9 +50,8 @@ export const eduzzPayload = {
 };
 
 export const uazapiWebhookPayload = {
-  event: 'messages.upsert',
-  instance: 'instance_client-abc',
-  data: {
+  instanceName: 'instance_client-abc',
+  message: {
     key: {
       remoteJid: '5511999999999@s.whatsapp.net',
       fromMe: false,
@@ -61,6 +60,32 @@ export const uazapiWebhookPayload = {
     message: {
       conversation: 'Oi, vi que abandonei o carrinho. Qual o desconto?',
     },
+  },
+};
+
+export const uazapiFromMePayload = {
+  instanceName: 'instance_client-abc',
+  message: {
+    key: {
+      remoteJid: '5511999999999@s.whatsapp.net',
+      fromMe: true,
+      id: 'msg-002',
+    },
+    message: {
+      conversation: 'Sent by me',
+    },
+  },
+};
+
+export const uazapiNoTextPayload = {
+  instanceName: 'instance_client-abc',
+  message: {
+    key: {
+      remoteJid: '5511999999999@s.whatsapp.net',
+      fromMe: false,
+      id: 'msg-003',
+    },
+    message: {},
   },
 };
 

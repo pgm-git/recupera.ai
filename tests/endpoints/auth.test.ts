@@ -24,6 +24,19 @@ vi.mock('axios', () => ({
   },
 }));
 
+vi.mock('../../services/aiHandler', () => ({
+  processConversationStep: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../services/queueService', () => ({
+  scheduleRecovery: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+  createRequestLogger: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 import { app } from '../../express-app';
 
 describe('Authentication (current state: INSECURE)', () => {

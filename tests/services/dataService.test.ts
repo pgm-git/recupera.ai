@@ -21,7 +21,7 @@ vi.mock('../../lib/supabase', () => ({
   isSupabaseConfigured: mockIsConfigured,
 }));
 
-import { getLeads, saveProductConfig } from '../../services/dataService';
+import { getLeads, getLead, updateLeadStatus, saveProductConfig } from '../../services/dataService';
 
 describe('dataService', () => {
   beforeEach(() => {
@@ -84,6 +84,50 @@ describe('dataService', () => {
       const leads = await getLeads();
 
       expect(leads.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('getLead()', () => {
+    it('should return mock lead when Supabase is not configured', async () => {
+      mockIsConfigured.mockReturnValue(false);
+      const lead = await getLead('1');
+      expect(lead).toBeDefined();
+      expect(lead?.id).toBe('1');
+    });
+
+    it('should return null for non-existent lead in mock mode', async () => {
+      mockIsConfigured.mockReturnValue(false);
+      const lead = await getLead('nonexistent');
+      expect(lead).toBeNull();
+    });
+
+    it('should fetch lead from Supabase', async () => {
+      mockIsConfigured.mockReturnValue(true);
+      mockSupabaseChain.single.mockResolvedValueOnce({
+        data: { id: 'lead-1', name: 'Test', phone: '123', email: 'test@test.com', status: 'contacted', value: '100', created_at: '2024-01-01T00:00:00Z' },
+        error: null,
+      });
+
+      const lead = await getLead('lead-1');
+      expect(lead).toBeDefined();
+      expect(lead?.status).toBe('contacted');
+    });
+  });
+
+  describe('updateLeadStatus()', () => {
+    it('should update lead status in Supabase', async () => {
+      mockIsConfigured.mockReturnValue(true);
+      mockSupabaseChain.eq.mockResolvedValueOnce({ error: null });
+
+      await updateLeadStatus('lead-1', 'recovered_by_ai');
+      expect(mockFrom).toHaveBeenCalledWith('leads');
+      expect(mockSupabaseChain.update).toHaveBeenCalledWith({ status: 'recovered_by_ai' });
+    });
+
+    it('should do nothing when Supabase is not configured', async () => {
+      mockIsConfigured.mockReturnValue(false);
+      await updateLeadStatus('lead-1', 'failed');
+      expect(mockFrom).not.toHaveBeenCalled();
     });
   });
 

@@ -1,7 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseAdmin as supabase } from './lib/supabaseAdmin.ts';
+import { processConversationStep } from './services/aiHandler.ts';
+import { scheduleRecovery } from './services/queueService.ts';
+import { rateLimiter } from './middleware/rateLimiter.ts';
+import { logger, createRequestLogger } from './lib/logger.ts';
 
 const app = express();
 
@@ -9,11 +13,31 @@ const app = express();
 const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
+app.use(createRequestLogger());
 
-// Supabase Client
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Health check
+app.get('/health', async (_req, res) => {
+  const checks: Record<string, string> = { app: 'ok' };
+
+  try {
+    const { error } = await supabase.from('clients').select('id').limit(1);
+    checks.database = error ? 'error' : 'ok';
+  } catch {
+    checks.database = 'error';
+  }
+
+  const allOk = Object.values(checks).every(v => v === 'ok');
+  res.status(allOk ? 200 : 503).json({
+    status: allOk ? 'healthy' : 'degraded',
+    checks,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Rate limiting: API routes (stricter) and webhooks (more permissive)
+app.use('/api/whatsapp/connect', rateLimiter({ windowMs: 60_000, max: 10, name: 'connect' }));
+app.use('/api/whatsapp/status', rateLimiter({ windowMs: 60_000, max: 30, name: 'status' }));
+app.use('/api/webhooks', rateLimiter({ windowMs: 60_000, max: 120, name: 'webhooks' }));
 
 // UAZAPI Config
 const UAZAPI_BASE_URL = process.env.UAZAPI_BASE_URL || '';
@@ -124,10 +148,44 @@ app.get('/api/whatsapp/status/:clientId', async (req, res) => {
   res.json(data || { status: 'disconnected' });
 });
 
-// Webhook for WhatsApp (Placeholder)
+// Webhook for WhatsApp (UAZAPI)
 app.post('/api/whatsapp/webhook', async (req, res) => {
-  console.log('[WEBHOOK UAZAPI] Payload received:', JSON.stringify(req.body));
-  // TODO: Implement AI Handler logic here
+  const body = req.body;
+  console.log('[WEBHOOK UAZAPI] Payload received:', JSON.stringify(body));
+
+  const instanceKey = body.instanceName;
+  const messageData = body.message;
+
+  if (!messageData) {
+    return res.json({ status: 'ignored', reason: 'no_message_data' });
+  }
+
+  // Ignore messages sent by ourselves
+  if (messageData.key?.fromMe) {
+    return res.json({ status: 'ignored', reason: 'from_me' });
+  }
+
+  // Extract phone from remoteJid
+  const remoteJid = messageData.key?.remoteJid || '';
+  const phoneNumber = remoteJid.split('@')[0];
+
+  // Extract text content
+  let textContent = '';
+  if (messageData.message?.conversation) {
+    textContent = messageData.message.conversation;
+  } else if (messageData.message?.extendedTextMessage?.text) {
+    textContent = messageData.message.extendedTextMessage.text;
+  }
+
+  if (!textContent) {
+    return res.json({ status: 'ignored', reason: 'no_text_content' });
+  }
+
+  // Fire-and-forget AI dispatch
+  processConversationStep(phoneNumber, textContent, instanceKey).catch((err) => {
+    console.error('[WEBHOOK] AI processing error:', err);
+  });
+
   res.json({ status: 'processing' });
 });
 
@@ -193,7 +251,7 @@ app.post('/api/webhooks/:clientId', async (req, res) => {
 
       // 3. Handle Event Logic
       // (This logic would be expanded based on specific platform event names)
-      if (['PURCHASE_APPROVED', 'paid', '3'].includes(event)) { // 3 is Eduzz paid status example
+      if (['PURCHASE_APPROVED', 'ORDER_APPROVED', 'paid', '3'].includes(event)) {
           // Kill Switch: Mark leads as converted
           await supabase
             .from('leads')
@@ -227,8 +285,10 @@ app.post('/api/webhooks/:clientId', async (req, res) => {
               return res.status(500).json({ error: 'db_error' });
           }
 
-          // Trigger AI Recovery Task (Placeholder for Celery/Queue)
-          // schedule_recovery(lead.id);
+          // Schedule AI recovery via BullMQ
+          scheduleRecovery(lead.id, product.delay_minutes || 15).catch((err) => {
+            console.error('Error scheduling recovery:', err);
+          });
 
           return res.json({ status: 'queued', lead_id: lead.id });
       }
@@ -238,6 +298,55 @@ app.post('/api/webhooks/:clientId', async (req, res) => {
   } catch (error: any) {
       console.error('Webhook Error:', error);
       res.status(500).json({ error: error.message });
+  }
+});
+
+// --- LGPD Compliance Endpoints ---
+
+// Data export (data portability)
+app.get('/api/lgpd/export/:clientId', async (req, res) => {
+  const { clientId } = req.params;
+
+  try {
+    const [clientRes, productsRes, leadsRes, instancesRes] = await Promise.all([
+      supabase.from('clients').select('*').eq('id', clientId).single(),
+      supabase.from('products').select('*').eq('client_id', clientId),
+      supabase.from('leads').select('*').eq('client_id', clientId),
+      supabase.from('instances').select('id, instance_key, status').eq('client_id', clientId),
+    ]);
+
+    res.json({
+      exportDate: new Date().toISOString(),
+      client: clientRes.data,
+      products: productsRes.data || [],
+      leads: leadsRes.data || [],
+      instances: instancesRes.data || [],
+    });
+  } catch (error: any) {
+    logger.error({ err: error, clientId }, 'LGPD export error');
+    res.status(500).json({ error: 'export_failed' });
+  }
+});
+
+// Data deletion (right to be forgotten)
+app.delete('/api/lgpd/delete/:clientId', async (req, res) => {
+  const { clientId } = req.params;
+  const now = new Date().toISOString();
+
+  try {
+    // Soft delete all related data
+    await Promise.all([
+      supabase.from('leads').update({ deleted_at: now }).eq('client_id', clientId),
+      supabase.from('products').update({ deleted_at: now }).eq('client_id', clientId),
+      supabase.from('instances').update({ deleted_at: now }).eq('client_id', clientId),
+      supabase.from('clients').update({ deleted_at: now }).eq('id', clientId),
+    ]);
+
+    logger.info({ clientId }, 'LGPD data deletion completed');
+    res.json({ status: 'deleted', clientId, deletedAt: now });
+  } catch (error: any) {
+    logger.error({ err: error, clientId }, 'LGPD deletion error');
+    res.status(500).json({ error: 'deletion_failed' });
   }
 });
 

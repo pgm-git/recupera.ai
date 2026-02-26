@@ -12,7 +12,7 @@ const Settings: React.FC = () => {
 
   const userId = profile?.id || "user-id-placeholder";
 
-  const webhookUrl = `https://api.recupa.ai/api/webhooks/hotmart/${userId}`;
+  const webhookUrl = `https://api.recupa.ai/api/webhooks/${userId}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -57,7 +57,7 @@ const Settings: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold text-slate-900">WhatsApp (UAZAPI)</h3>
                             <p className="text-sm text-slate-500 mt-1 max-w-lg">
-                                O Backend Python gerencia a conexão via UAZAPI. Clique para gerar o QR Code.
+                                Conecte seu WhatsApp via UAZAPI para enviar mensagens de recuperação.
                             </p>
                             <div className="flex items-center mt-3 space-x-2">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
@@ -84,7 +84,7 @@ const Settings: React.FC = () => {
                         <div>
                             <h3 className="text-lg font-semibold text-slate-900">Webhook Global</h3>
                             <p className="text-sm text-slate-500 mt-1 max-w-lg">
-                                URL para configurar na Hotmart/Kiwify. O Backend Python processará os eventos.
+                                URL para configurar na Hotmart/Kiwify. Os eventos serão processados automaticamente.
                             </p>
                         </div>
                     </div>
@@ -115,7 +115,7 @@ const Settings: React.FC = () => {
                     <div>
                         <h3 className="text-lg font-semibold text-slate-900">OpenAI API Key</h3>
                         <p className="text-sm text-slate-500 mt-1 max-w-lg">
-                            Configuração global para o Backend.
+                            Chave de API para o agente de IA.
                         </p>
                     </div>
                 </div>

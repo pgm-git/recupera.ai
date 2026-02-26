@@ -37,6 +37,33 @@ const mapProduct = (data: any): Product => ({
   deletedAt: data.deleted_at
 });
 
+export const getLead = async (id: string): Promise<Lead | null> => {
+  if (!isSupabaseConfigured()) {
+    const mock = (await import('./mockService')).mockLeads.find(l => l.id === id);
+    return mock || null;
+  }
+
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error || !data) return null;
+  return mapLead(data);
+};
+
+export const updateLeadStatus = async (id: string, status: string): Promise<void> => {
+  if (!isSupabaseConfigured()) return;
+
+  const { error } = await supabase
+    .from('leads')
+    .update({ status })
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
 export const getLeads = async (): Promise<Lead[]> => {
   if (!isSupabaseConfigured()) {
     console.warn("Supabase não configurado. Usando dados mockados.");

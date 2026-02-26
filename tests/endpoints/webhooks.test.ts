@@ -38,6 +38,23 @@ vi.mock('axios', () => ({
   },
 }));
 
+vi.mock('../../services/aiHandler', () => ({
+  processConversationStep: vi.fn().mockResolvedValue(undefined),
+}));
+
+const { mockScheduleRecovery } = vi.hoisted(() => ({
+  mockScheduleRecovery: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../services/queueService', () => ({
+  scheduleRecovery: mockScheduleRecovery,
+}));
+
+vi.mock('../../lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+  createRequestLogger: () => (_req: any, _res: any, next: any) => next(),
+}));
+
 import { app } from '../../express-app';
 
 describe('POST /api/webhooks/:clientId', () => {
@@ -45,7 +62,7 @@ describe('POST /api/webhooks/:clientId', () => {
     vi.clearAllMocks();
   });
 
-  it('should create lead on Hotmart CART_ABANDONMENT', async () => {
+  it('should create lead on Hotmart CART_ABANDONMENT and schedule recovery', async () => {
     mockSupabaseChain.single
       .mockResolvedValueOnce({ data: mockProduct, error: null })
       .mockResolvedValueOnce({ data: mockLead, error: null });
@@ -57,6 +74,7 @@ describe('POST /api/webhooks/:clientId', () => {
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('queued');
     expect(res.body.lead_id).toBeDefined();
+    expect(mockScheduleRecovery).toHaveBeenCalledWith(mockLead.id, mockProduct.delay_minutes);
   });
 
   it('should trigger kill switch on Hotmart PURCHASE_APPROVED', async () => {
@@ -68,6 +86,19 @@ describe('POST /api/webhooks/:clientId', () => {
     const res = await request(app)
       .post('/api/webhooks/client-abc')
       .send(hotmartPurchasePayload);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('success');
+    expect(res.body.action).toBe('kill_switch');
+  });
+
+  it('should trigger kill switch on ORDER_APPROVED', async () => {
+    mockSupabaseChain.single
+      .mockResolvedValueOnce({ data: mockProduct, error: null });
+
+    const res = await request(app)
+      .post('/api/webhooks/client-abc')
+      .send({ ...hotmartPurchasePayload, event: 'ORDER_APPROVED' });
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('success');

@@ -1,6 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Lead } from '../types';
-import { MessageSquare, CheckCircle, Clock, XCircle, ShoppingCart } from 'lucide-react';
+import StatusBadge from './StatusBadge';
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -8,63 +9,20 @@ interface LeadsTableProps {
 }
 
 const LeadsTable: React.FC<LeadsTableProps> = ({ leads, isLoading }) => {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'recovered_by_ai':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-            <CheckCircle size={12} className="mr-1" />
-            Recuperado IA
-          </span>
-        );
-      case 'contacted':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <MessageSquare size={12} className="mr-1" />
-            Contactado
-          </span>
-        );
-      case 'pending_recovery':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-            <Clock size={12} className="mr-1" />
-            Pendente
-          </span>
-        );
-      case 'converted_organically':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-            <ShoppingCart size={12} className="mr-1" />
-            Orgânico
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <XCircle size={12} className="mr-1" />
-            Falha
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-            {status}
-          </span>
-        );
-    }
-  };
+  const navigate = useNavigate();
 
-  const formatCurrency = (val: number) => {
+  const formatCurrency = (val?: number) => {
+    if (val == null) return 'R$ 0,00';
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return new Intl.DateTimeFormat('pt-BR', { 
-        day: '2-digit', 
-        month: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
+    return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
     }).format(date);
   };
 
@@ -91,18 +49,26 @@ const LeadsTable: React.FC<LeadsTableProps> = ({ leads, isLoading }) => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {leads.map((lead) => (
-              <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
+              <tr
+                key={lead.id}
+                className="hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/leads/${lead.id}`)}
+                role="link"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && navigate(`/leads/${lead.id}`)}
+                aria-label={`Ver detalhes de ${lead.name}`}
+              >
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
                     <span className="font-medium text-slate-900">{lead.name}</span>
                     <span className="text-xs text-slate-500">{lead.email}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-slate-700">{lead.productName}</td>
+                <td className="px-6 py-4 text-slate-700">{lead.productName || '—'}</td>
                 <td className="px-6 py-4 font-medium text-slate-900">{formatCurrency(lead.value)}</td>
                 <td className="px-6 py-4 text-slate-500">{formatDate(lead.createdAt)}</td>
                 <td className="px-6 py-4">
-                  {getStatusBadge(lead.status)}
+                  <StatusBadge status={lead.status} />
                 </td>
               </tr>
             ))}

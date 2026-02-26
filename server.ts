@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate required env vars before importing app
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'UAZAPI_BASE_URL', 'UAZAPI_API_KEY'];
+const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'UAZAPI_BASE_URL', 'UAZAPI_API_KEY', 'OPENAI_API_KEY', 'REDIS_URL'];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     console.error(`Missing required environment variable: ${envVar}`);
@@ -13,6 +13,7 @@ for (const envVar of requiredEnvVars) {
 import { createServer as createViteServer } from 'vite';
 import express from 'express';
 import { app } from './express-app.ts';
+import { createRecoveryWorker } from './services/recoveryWorker.ts';
 
 const PORT = 3000;
 
@@ -27,6 +28,11 @@ async function startServer() {
   } else {
     // Serve static files in production
     app.use(express.static('dist'));
+  }
+
+  // Start recovery worker (skip in test environment)
+  if (process.env.NODE_ENV !== 'test') {
+    createRecoveryWorker();
   }
 
   app.listen(PORT, '0.0.0.0', () => {

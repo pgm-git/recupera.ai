@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { uazapiWebhookPayload, mockInstance } from '../helpers/fixtures';
+import { uazapiWebhookPayload, uazapiFromMePayload, uazapiNoTextPayload, mockInstance } from '../helpers/fixtures';
 
 const { mockSupabaseChain, mockFrom } = vi.hoisted(() => {
   const mockSupabaseChain = {
@@ -33,6 +33,23 @@ vi.mock('axios', () => ({
     post: mockedAxiosPost,
     get: mockedAxiosGet,
   },
+}));
+
+const { mockProcessConversationStep } = vi.hoisted(() => ({
+  mockProcessConversationStep: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../services/aiHandler', () => ({
+  processConversationStep: mockProcessConversationStep,
+}));
+
+vi.mock('../../services/queueService', () => ({
+  scheduleRecovery: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../../lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+  createRequestLogger: () => (_req: any, _res: any, next: any) => next(),
 }));
 
 import { app } from '../../express-app';
@@ -119,12 +136,53 @@ describe('GET /api/whatsapp/status/:clientId', () => {
 });
 
 describe('POST /api/whatsapp/webhook', () => {
-  it('should accept payload and return processing', async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should dispatch to AI handler and return processing', async () => {
     const res = await request(app)
       .post('/api/whatsapp/webhook')
       .send(uazapiWebhookPayload);
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('processing');
+    expect(mockProcessConversationStep).toHaveBeenCalledWith(
+      '5511999999999',
+      'Oi, vi que abandonei o carrinho. Qual o desconto?',
+      'instance_client-abc',
+    );
+  });
+
+  it('should ignore fromMe messages', async () => {
+    const res = await request(app)
+      .post('/api/whatsapp/webhook')
+      .send(uazapiFromMePayload);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ignored');
+    expect(res.body.reason).toBe('from_me');
+    expect(mockProcessConversationStep).not.toHaveBeenCalled();
+  });
+
+  it('should ignore messages with no text content', async () => {
+    const res = await request(app)
+      .post('/api/whatsapp/webhook')
+      .send(uazapiNoTextPayload);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ignored');
+    expect(res.body.reason).toBe('no_text_content');
+    expect(mockProcessConversationStep).not.toHaveBeenCalled();
+  });
+
+  it('should ignore payload without message data', async () => {
+    const res = await request(app)
+      .post('/api/whatsapp/webhook')
+      .send({ instanceName: 'instance_abc' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ignored');
+    expect(res.body.reason).toBe('no_message_data');
   });
 });

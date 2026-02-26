@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
 import { getProducts, toggleProductStatus, saveProductConfig } from '../services/dataService';
@@ -6,13 +6,18 @@ import { Product } from '../types';
 import { Plus, Search, Filter } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../contexts/ToastContext';
 
 const Products: React.FC = () => {
   const { profile } = useAuth();
+  const { addToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
+  const [platformFilter, setPlatformFilter] = useState<string>('all');
 
   useEffect(() => {
     fetchProducts();
@@ -25,23 +30,33 @@ const Products: React.FC = () => {
     setIsLoading(false);
   };
 
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? p.isActive : !p.isActive);
+      const matchesPlatform = platformFilter === 'all' || p.platform === platformFilter;
+      return matchesSearch && matchesStatus && matchesPlatform;
+    });
+  }, [products, searchQuery, statusFilter, platformFilter]);
+
   const handleToggleStatus = async (id: string) => {
     const product = products.find(p => p.id === id);
     if (!product) return;
 
     // Optimistic update
-    setProducts(products.map(p => 
+    setProducts(products.map(p =>
         p.id === id ? { ...p, isActive: !p.isActive } : p
     ));
 
     try {
         await toggleProductStatus(id, product.isActive);
+        addToast('success', `Produto ${product.isActive ? 'pausado' : 'ativado'}`);
     } catch (error) {
         console.error("Error toggling status", error);
-        // Revert on error
-        setProducts(products.map(p => 
+        setProducts(products.map(p =>
             p.id === id ? { ...p, isActive: product.isActive } : p
         ));
+        addToast('error', 'Erro ao alterar status do produto');
     }
   };
 
@@ -58,23 +73,21 @@ const Products: React.FC = () => {
   const handleSaveProduct = async (productData: Partial<Product>) => {
     try {
         const savedProduct = await saveProductConfig(productData, profile?.id);
-        
+
         if (savedProduct) {
-            // Se for edição, atualiza na lista
             if (editingProduct) {
                 setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p));
             } else {
-                // Se for novo, adiciona
                 setProducts([...products, savedProduct]);
             }
         } else {
-             // Fallback se não retornar nada (ex: erro silencioso)
              await fetchProducts();
         }
-        setIsModalOpen(false); // Fecha modal após salvar
+        setIsModalOpen(false);
+        addToast('success', editingProduct ? 'Produto atualizado' : 'Produto criado com sucesso');
     } catch (error) {
         console.error("Erro ao salvar produto", error);
-        alert("Erro ao salvar. Verifique se o Supabase está conectado.");
+        addToast('error', 'Erro ao salvar. Verifique se o Supabase está conectado.');
     }
   };
 
@@ -88,7 +101,7 @@ const Products: React.FC = () => {
           </h1>
           <p className="text-slate-500 mt-1">Gerencie os agentes de recuperação para cada produto.</p>
         </div>
-        <button 
+        <button
             onClick={handleNewProduct}
             className="flex items-center space-x-2 bg-brand-600 text-white px-4 py-2.5 rounded-lg hover:bg-brand-700 transition-colors shadow-sm font-medium"
         >
@@ -101,22 +114,36 @@ const Products: React.FC = () => {
       <div className="flex flex-col sm:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
-            <input 
-                type="text" 
-                placeholder="Buscar produtos..." 
+            <input
+                type="text"
+                placeholder="Buscar produtos..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                aria-label="Buscar produtos"
             />
          </div>
          <div className="flex gap-2">
-            <button className="flex items-center space-x-2 px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">
-                <Filter size={18} />
-                <span>Status</span>
-            </button>
-            <select className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
-                <option>Todas Plataformas</option>
-                <option>Hotmart</option>
-                <option>Kiwify</option>
-                <option>Eduzz</option>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as 'all' | 'active' | 'paused')}
+              className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              aria-label="Filtrar por status"
+            >
+              <option value="all">Todos Status</option>
+              <option value="active">Ativos</option>
+              <option value="paused">Pausados</option>
+            </select>
+            <select
+              value={platformFilter}
+              onChange={e => setPlatformFilter(e.target.value)}
+              className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              aria-label="Filtrar por plataforma"
+            >
+                <option value="all">Todas Plataformas</option>
+                <option value="hotmart">Hotmart</option>
+                <option value="kiwify">Kiwify</option>
+                <option value="eduzz">Eduzz</option>
             </select>
          </div>
       </div>
@@ -130,17 +157,23 @@ const Products: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <ProductCard 
-                key={product.id} 
-                product={product} 
+          {filteredProducts.map((product) => (
+            <ProductCard
+                key={product.id}
+                product={product}
                 onEdit={handleEdit}
                 onToggleStatus={handleToggleStatus}
             />
           ))}
-          
+
+          {filteredProducts.length === 0 && products.length > 0 && (
+            <div className="col-span-full text-center py-12 text-slate-500">
+              Nenhum produto encontrado com os filtros selecionados.
+            </div>
+          )}
+
           {/* Add New Placeholder Card */}
-          <button 
+          <button
              onClick={handleNewProduct}
              className="flex flex-col items-center justify-center h-full min-h-[250px] border-2 border-dashed border-slate-300 rounded-xl hover:border-brand-400 hover:bg-brand-50 transition-all group"
           >
@@ -152,7 +185,7 @@ const Products: React.FC = () => {
         </div>
       )}
 
-      <ProductModal 
+      <ProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         product={editingProduct}

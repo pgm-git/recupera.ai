@@ -24,13 +24,13 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose }) => {
       setLoading(true);
       setStatus('waiting');
       
-      // 1. Pede ao Backend Python para iniciar sessão na UAZAPI
+      // 1. Inicia sessão na UAZAPI via backend
       connectInstance(clientId).then((data) => {
         if(mounted && data.qrCodeBase64) {
             setQrCode(data.qrCodeBase64);
             setLoading(false);
             
-            // 2. Polling: Pergunta ao Backend Python se conectou
+            // 2. Polling: Verifica status da conexão
             pollingRef.current = window.setInterval(async () => {
                 try {
                     const statusData = await checkInstanceStatus(clientId);
@@ -80,7 +80,7 @@ const QRModal: React.FC<QRModalProps> = ({ isOpen, onClose }) => {
                       <CheckCircle size={40} className="text-emerald-600" />
                   </div>
                   <h4 className="text-xl font-bold text-slate-900">Conectado com Sucesso!</h4>
-                  <p className="text-slate-500 mt-2">O Backend Python está pronto para processar filas.</p>
+                  <p className="text-slate-500 mt-2">Seu WhatsApp está pronto para enviar mensagens de recuperação.</p>
                   <button onClick={onClose} className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium">
                       Fechar
                   </button>

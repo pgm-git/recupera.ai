@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingBag, Settings, LogOut, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Settings, LogOut, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -58,15 +58,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         <div className="p-4 border-t border-slate-100">
-           <div className="flex items-center space-x-3 px-4 py-3 text-sm text-slate-600">
+           <button
+             onClick={() => navigate('/profile')}
+             className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+           >
              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
                <span className="font-semibold text-xs">{userInitials}</span>
              </div>
-             <div className="flex flex-col">
+             <div className="flex flex-col text-left">
                <span className="font-medium text-slate-900">{profile?.name || 'Usuario'}</span>
                <span className="text-xs text-slate-500">{profile?.email || ''}</span>
              </div>
-           </div>
+           </button>
            <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-2 mt-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -98,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Mobile Bottom Nav */}
-      <div className="md:hidden bg-white border-t border-slate-200 flex justify-around p-3 fixed bottom-0 w-full z-10">
+      <div className="md:hidden bg-white border-t border-slate-200 flex justify-around p-3 pb-safe fixed bottom-0 w-full z-10">
           {menuItems.map((item) => {
              const isActive = location.pathname === item.path;
              const Icon = item.icon;
