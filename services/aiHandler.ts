@@ -1,8 +1,11 @@
 import OpenAI from 'openai';
 import { supabaseAdmin } from '../lib/supabaseAdmin.ts';
-import { sendMessageUazapi } from './uazapiService.ts';
+import { sendMessageUazapi, getInstanceTokenByKey } from './uazapiService.ts';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY || 'demo-key',
+  baseURL: process.env.DEEPSEEK_API_KEY ? 'https://api.deepseek.com' : undefined,
+});
 
 const SYSTEM_PROMPT_TEMPLATE = `
 Você é um especialista em recuperação de vendas do produto {product_name}.
@@ -55,7 +58,7 @@ export async function generateInitialMessage(product: Record<string, any>, lead:
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: process.env.DEEPSEEK_API_KEY ? 'deepseek-chat' : 'gpt-4o-mini',
       messages,
       max_tokens: 150,
       temperature: 0.7,
@@ -117,9 +120,9 @@ export async function processConversationStep(phoneNumber: string, incomingMessa
   ];
 
   try {
-    console.log('[AI AGENT] Chamando OpenAI...');
+    console.log(`[AI AGENT] Chamando LLM (${process.env.DEEPSEEK_API_KEY ? 'DeepSeek' : 'OpenAI'})...`);
     const gptResponse = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: process.env.DEEPSEEK_API_KEY ? 'deepseek-chat' : 'gpt-4o-mini',
       messages,
       max_tokens: 150,
       temperature: 0.7,
@@ -129,7 +132,13 @@ export async function processConversationStep(phoneNumber: string, incomingMessa
     const aiReply = gptResponse.choices[0].message.content?.trim() || '';
     console.log(`[AI AGENT] Resposta gerada: ${aiReply}`);
 
-    await sendMessageUazapi(instanceKey, phoneNumber, aiReply);
+    // Look up instance token from DB
+    const instanceToken = await getInstanceTokenByKey(instanceKey);
+    if (!instanceToken) {
+      console.error(`[AI AGENT] No instance token found for ${instanceKey}`);
+      return;
+    }
+    await sendMessageUazapi(instanceToken, phoneNumber, aiReply);
 
     currentLog.push({ role: 'assistant', content: aiReply });
 

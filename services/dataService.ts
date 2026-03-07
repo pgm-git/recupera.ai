@@ -83,6 +83,52 @@ export const getLeads = async (): Promise<Lead[]> => {
   return data.map(mapLead);
 };
 
+export interface LeadsPage {
+  leads: Lead[];
+  total: number;
+}
+
+export const getLeadsPaginated = async (options: {
+  page: number;
+  pageSize: number;
+  search?: string;
+  status?: string;
+}): Promise<LeadsPage> => {
+  const { page, pageSize, search, status } = options;
+
+  if (!isSupabaseConfigured()) {
+    let filtered = [...mockLeads];
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(l => l.name.toLowerCase().includes(q) || l.email.toLowerCase().includes(q));
+    }
+    if (status && status !== 'all') {
+      filtered = filtered.filter(l => l.status === status);
+    }
+    const start = page * pageSize;
+    return { leads: filtered.slice(start, start + pageSize), total: filtered.length };
+  }
+
+  let query = supabase.from('leads').select('*', { count: 'exact' });
+
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+  }
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
+  }
+
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+  return { leads: (data || []).map(mapLead), total: count || 0 };
+};
+
 export const getProducts = async (): Promise<Product[]> => {
   if (!isSupabaseConfigured()) {
      return new Promise(resolve => setTimeout(() => resolve(mockProducts), 600));
@@ -158,37 +204,24 @@ export const saveProductConfig = async (product: Partial<Product>, userId?: stri
      return mockProduct;
   }
 
-  // Map camelCase properties to snake_case for DB
-  const dbPayload: any = { ...product };
-  
-  // Remove ID if it's undefined/empty string to let Supabase generate it
-  if (!dbPayload.id) {
-      delete dbPayload.id;
-  }
+  // Build a clean snake_case payload with only valid DB columns
+  const dbPayload: any = {};
 
-  // Set client_id from authenticated user for new inserts (required by RLS)
-  if (!dbPayload.client_id && userId) {
-    dbPayload.client_id = userId;
-  }
+  // ID: only include if editing an existing product
+  if (product.id) dbPayload.id = product.id;
 
-  if(product.isActive !== undefined) dbPayload.is_active = product.isActive;
-  if(product.agentPersona !== undefined) dbPayload.agent_persona = product.agentPersona;
-  if(product.delayMinutes !== undefined) dbPayload.delay_minutes = product.delayMinutes;
-  if(product.downsellLink !== undefined) dbPayload.downsell_link = product.downsellLink;
-  if(product.externalProductId !== undefined) dbPayload.external_product_id = product.externalProductId;
-  
-  // Clean up camelCase keys
-  delete dbPayload.isActive;
-  delete dbPayload.agentPersona;
-  delete dbPayload.delayMinutes;
-  delete dbPayload.downsellLink;
-  delete dbPayload.externalProductId;
-  delete dbPayload.totalRecovered;
-  delete dbPayload.abandonedCount;
-  delete dbPayload.recoveredCount;
-  delete dbPayload.revenue;
-  delete dbPayload.clientId;
-  delete dbPayload.productName; // Cleanup potential extra fields
+  // client_id: from product or from authenticated user (required by RLS)
+  dbPayload.client_id = product.clientId || userId;
+
+  // Direct mappings (snake_case columns)
+  if (product.name !== undefined) dbPayload.name = product.name;
+  if (product.platform !== undefined) dbPayload.platform = product.platform;
+  if (product.externalProductId !== undefined) dbPayload.external_product_id = product.externalProductId;
+  if (product.agentPersona !== undefined) dbPayload.agent_persona = product.agentPersona;
+  if (product.objectionHandling !== undefined) dbPayload.objection_handling = product.objectionHandling;
+  if (product.downsellLink !== undefined) dbPayload.downsell_link = product.downsellLink;
+  if (product.delayMinutes !== undefined) dbPayload.delay_minutes = product.delayMinutes;
+  if (product.isActive !== undefined) dbPayload.is_active = product.isActive;
 
   const { data, error } = await supabase
     .from('products')

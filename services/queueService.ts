@@ -14,6 +14,10 @@ function getQueue(): Queue {
 }
 
 export async function scheduleRecovery(leadId: string, delayMinutes: number): Promise<void> {
+  if (!process.env.REDIS_URL) {
+    console.warn(`[QUEUE] Skipped (no Redis): would schedule lead ${leadId} in ${delayMinutes}min`);
+    return;
+  }
   const queue = getQueue();
   await queue.add(
     'recover-lead',

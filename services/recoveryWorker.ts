@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { supabaseAdmin } from '../lib/supabaseAdmin.ts';
-import { sendMessageUazapi } from './uazapiService.ts';
+import { sendMessageUazapi, getInstanceTokenByProduct } from './uazapiService.ts';
 import { generateInitialMessage } from './aiHandler.ts';
 
 async function processRecoveryJob(job: Job<{ leadId: string }>): Promise<string> {
@@ -31,24 +31,19 @@ async function processRecoveryJob(job: Job<{ leadId: string }>): Promise<string>
   if (!products || products.length === 0) return 'product_not_found';
   const product = products[0];
 
-  // 3. Find connected WhatsApp instance
-  const { data: instances } = await supabaseAdmin
-    .from('instances')
-    .select('instance_key, status')
-    .eq('client_id', lead.client_id)
-    .eq('status', 'connected');
+  // 3. Find connected WhatsApp instance for this product
+  const instanceToken = await getInstanceTokenByProduct(lead.product_id);
 
-  if (!instances || instances.length === 0) {
-    console.log('[Worker] Nenhuma instância WhatsApp conectada para este cliente.');
+  if (!instanceToken) {
+    console.log('[Worker] Nenhuma instância WhatsApp conectada para este produto.');
     return 'no_whatsapp_instance';
   }
-  const instanceKey = instances[0].instance_key;
 
   // 4. Generate AI message (fixes generate_message() bug from Python)
   const message = await generateInitialMessage(product, lead);
 
   // 5. Send via UAZAPI
-  await sendMessageUazapi(instanceKey, lead.phone, message);
+  await sendMessageUazapi(instanceToken, lead.phone, message);
 
   // 6. Update status and log
   const newLog = lead.conversation_log || [];

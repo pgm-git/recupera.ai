@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Smartphone, Package, Link, TestTube, ArrowRight, ArrowLeft, SkipForward } from 'lucide-react';
-import QRModal from '../components/QRModal';
+import { CheckCircle, Package, Link, TestTube, ArrowRight, ArrowLeft, SkipForward } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../hooks/useAuth';
 
@@ -13,8 +12,7 @@ interface Step {
 
 const steps: Step[] = [
   { title: 'Bem-vindo ao Recupera.AI', description: 'Recupere vendas abandonadas com IA + WhatsApp.', icon: CheckCircle },
-  { title: 'Conectar WhatsApp', description: 'Escaneie o QR Code para conectar sua instância.', icon: Smartphone },
-  { title: 'Configurar Produto', description: 'Adicione seu primeiro produto para monitorar.', icon: Package },
+  { title: 'Criar seu Primeiro Produto', description: 'Adicione um produto e conecte o WhatsApp nele.', icon: Package },
   { title: 'Configurar Webhook', description: 'Configure o webhook na sua plataforma de vendas.', icon: Link },
   { title: 'Testar Pipeline', description: 'Envie um lead teste para validar o fluxo completo.', icon: TestTube },
 ];
@@ -24,7 +22,6 @@ const Onboarding: React.FC = () => {
   const { addToast } = useToast();
   const { profile } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
-  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
   const markComplete = (step: number) => {
@@ -107,23 +104,13 @@ const Onboarding: React.FC = () => {
         )}
 
         {currentStep === 1 && (
-          <div className="text-center">
-            <button
-              onClick={() => setIsQRModalOpen(true)}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              <Smartphone size={18} className="inline mr-2" />
-              Conectar WhatsApp
-            </button>
-            <p className="text-xs text-slate-400 mt-3">Você também pode fazer isso depois em Configurações.</p>
-          </div>
-        )}
-
-        {currentStep === 2 && (
-          <div className="text-center">
+          <div className="text-center space-y-3">
+            <p className="text-sm text-slate-600">
+              Crie seu primeiro produto e conecte o WhatsApp diretamente nele.
+            </p>
             <button
               onClick={() => {
-                markComplete(2);
+                markComplete(1);
                 navigate('/products');
               }}
               className="px-6 py-3 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors font-medium"
@@ -134,7 +121,7 @@ const Onboarding: React.FC = () => {
           </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 2 && (
           <div className="space-y-4">
             <p className="text-sm text-slate-600 text-center">
               Copie a URL abaixo e configure como webhook de "Abandono de Carrinho" na sua plataforma:
@@ -154,7 +141,7 @@ const Onboarding: React.FC = () => {
           </div>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 3 && (
           <div className="text-center space-y-4">
             <p className="text-sm text-slate-600">
               Simule um abandono de carrinho na sua plataforma para verificar se o webhook está funcionando.
@@ -196,8 +183,6 @@ const Onboarding: React.FC = () => {
           </button>
         </div>
       </div>
-
-      <QRModal isOpen={isQRModalOpen} onClose={() => setIsQRModalOpen(false)} />
     </div>
   );
 };

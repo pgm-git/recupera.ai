@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import MetricCard from '../components/MetricCard';
 import RecoveryChart from '../components/RecoveryChart';
 import LeadsTable from '../components/LeadsTable';
@@ -16,24 +17,28 @@ const Dashboard: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<'7' | '30'>('30');
 
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setFetchError(null);
+      const [leadsData, chartDataRes] = await Promise.all([
+        getLeads(),
+        getChartData()
+      ]);
+      setLeads(leadsData);
+      setChartData(chartDataRes);
+    } catch (error: any) {
+      console.error("Failed to fetch dashboard data", error);
+      setFetchError(error.message || 'Erro ao carregar dados do dashboard');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [leadsData, chartDataRes] = await Promise.all([
-          getLeads(),
-          getChartData()
-        ]);
-        setLeads(leadsData);
-        setChartData(chartDataRes);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
@@ -89,6 +94,15 @@ const Dashboard: React.FC = () => {
              )}
         </div>
       </div>
+
+      {/* Error Banner */}
+      {fetchError && (
+        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
+          <AlertCircle size={20} className="flex-shrink-0" />
+          <span className="text-sm">{fetchError}</span>
+          <button onClick={fetchData} className="ml-auto text-sm font-medium hover:underline whitespace-nowrap">Tentar novamente</button>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

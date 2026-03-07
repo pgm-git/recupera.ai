@@ -28,5 +28,8 @@ Thumbs.db
 .aios/
 .claude/settings.local.json
 
+# Test Coverage
+coverage/
+
 # Outputs
 outputs/

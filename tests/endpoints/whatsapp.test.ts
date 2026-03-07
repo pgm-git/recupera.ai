@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { uazapiWebhookPayload, uazapiFromMePayload, uazapiNoTextPayload, mockInstance } from '../helpers/fixtures';
+import { uazapiWebhookPayload, uazapiFromMePayload, uazapiNoTextPayload } from '../helpers/fixtures';
 
 const { mockSupabaseChain, mockFrom } = vi.hoisted(() => {
   const mockSupabaseChain = {
@@ -23,15 +23,10 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }));
 
-const { mockedAxiosPost, mockedAxiosGet } = vi.hoisted(() => ({
-  mockedAxiosPost: vi.fn(),
-  mockedAxiosGet: vi.fn(),
-}));
-
 vi.mock('axios', () => ({
   default: {
-    post: mockedAxiosPost,
-    get: mockedAxiosGet,
+    post: vi.fn(),
+    get: vi.fn(),
   },
 }));
 
@@ -47,6 +42,23 @@ vi.mock('../../services/queueService', () => ({
   scheduleRecovery: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { mockCreateInstance, mockConnectInstance, mockGetInstanceStatus, mockGetInstanceTokenByKey } = vi.hoisted(() => ({
+  mockCreateInstance: vi.fn().mockResolvedValue({ token: 'new-token-123', uazapiId: 'uaz-id-001' }),
+  mockConnectInstance: vi.fn().mockResolvedValue({ qrcode: 'data:image/png;base64,QRCODE123', status: 'connecting' }),
+  mockGetInstanceStatus: vi.fn().mockResolvedValue({ status: 'connected', connected: true }),
+  mockGetInstanceTokenByKey: vi.fn().mockResolvedValue('instance-token-abc'),
+}));
+
+vi.mock('../../services/uazapiService', () => ({
+  createInstance: mockCreateInstance,
+  connectInstance: mockConnectInstance,
+  getInstanceStatus: mockGetInstanceStatus,
+  getInstanceTokenByKey: mockGetInstanceTokenByKey,
+  sendMessageUazapi: vi.fn(),
+  configureWebhook: vi.fn().mockResolvedValue(undefined),
+  deleteInstance: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock('../../lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
   createRequestLogger: () => (_req: any, _res: any, next: any) => next(),
@@ -54,84 +66,83 @@ vi.mock('../../lib/logger', () => ({
 
 import { app } from '../../express-app';
 
-describe('POST /api/whatsapp/connect/:clientId', () => {
+describe('POST /api/whatsapp/connect/:productId', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should return QR code from UAZAPI on success', async () => {
-    mockedAxiosPost
-      .mockResolvedValueOnce({ status: 200, data: {} })
-      .mockResolvedValueOnce({
-        status: 200,
-        data: { base64: 'data:image/png;base64,QRCODE123' },
-      });
+  it('should create new instance and return QR code', async () => {
+    // No existing instance
+    mockSupabaseChain.limit.mockResolvedValueOnce({ data: [] });
+    // Product lookup
+    mockSupabaseChain.single.mockResolvedValueOnce({ data: { client_id: 'client-1', name: 'Test Product' }, error: null });
+    // Insert instance
+    mockSupabaseChain.insert.mockReturnValue({ select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: {}, error: null }) });
+    // Update instance
+    mockSupabaseChain.update.mockReturnThis();
 
     const res = await request(app)
-      .post('/api/whatsapp/connect/client-abc');
+      .post('/api/whatsapp/connect/product-abc');
 
     expect(res.status).toBe(200);
-    expect(res.body.client_id).toBe('client-abc');
-    expect(res.body.instance_key).toBe('instance_client-abc');
     expect(res.body.qr_code_base64).toBe('data:image/png;base64,QRCODE123');
     expect(res.body.status).toBe('connecting');
+    expect(mockCreateInstance).toHaveBeenCalled();
+    expect(mockConnectInstance).toHaveBeenCalled();
   });
 
-  it('should return fallback mock QR on UAZAPI failure', async () => {
-    mockedAxiosPost.mockRejectedValue(new Error('UAZAPI unreachable'));
+  it('should return 500 error on UAZAPI failure', async () => {
+    mockSupabaseChain.limit.mockResolvedValueOnce({ data: [] });
+    mockSupabaseChain.single.mockResolvedValueOnce({ data: { client_id: 'client-1', name: 'Test' }, error: null });
+    mockCreateInstance.mockRejectedValueOnce(new Error('UAZAPI unreachable'));
 
     const res = await request(app)
-      .post('/api/whatsapp/connect/client-abc');
+      .post('/api/whatsapp/connect/product-abc');
 
-    expect(res.status).toBe(200);
-    expect(res.body.mock).toBe(true);
-    expect(res.body.qr_code_base64).toContain('data:image/png;base64,');
-    expect(res.body.client_id).toBe('client-abc');
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe('whatsapp_connect_failed');
   });
 });
 
-describe('GET /api/whatsapp/status/:clientId', () => {
+describe('GET /api/whatsapp/status/:productId', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should return connected when UAZAPI state is open', async () => {
-    mockedAxiosGet.mockResolvedValueOnce({
-      status: 200,
-      data: { instance: { state: 'open' } },
+  it('should return connected when UAZAPI reports connected', async () => {
+    mockSupabaseChain.limit.mockResolvedValueOnce({
+      data: [{ id: 'inst-1', token: 'tok-123', status: 'disconnected', instance_key: 'test' }],
     });
 
     const res = await request(app)
-      .get('/api/whatsapp/status/client-abc');
+      .get('/api/whatsapp/status/product-abc');
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('connected');
   });
 
-  it('should fallback to DB on UAZAPI failure', async () => {
-    mockedAxiosGet.mockRejectedValueOnce(new Error('timeout'));
-
-    mockSupabaseChain.single
-      .mockResolvedValueOnce({ data: mockInstance, error: null });
+  it('should return disconnected when no instance exists', async () => {
+    mockSupabaseChain.limit.mockResolvedValueOnce({ data: [] });
 
     const res = await request(app)
-      .get('/api/whatsapp/status/client-abc');
-
-    expect(res.status).toBe(200);
-    expect(res.body.status).toBe('connected');
-  });
-
-  it('should return disconnected when no DB record exists', async () => {
-    mockedAxiosGet.mockRejectedValueOnce(new Error('timeout'));
-
-    mockSupabaseChain.single
-      .mockResolvedValueOnce({ data: null, error: null });
-
-    const res = await request(app)
-      .get('/api/whatsapp/status/client-abc');
+      .get('/api/whatsapp/status/product-abc');
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('disconnected');
+    expect(res.body.message).toBe('no_instance');
+  });
+
+  it('should fallback to DB on UAZAPI failure', async () => {
+    mockSupabaseChain.limit.mockResolvedValueOnce({
+      data: [{ id: 'inst-1', token: 'tok-123', status: 'connected', instance_key: 'test' }],
+    });
+    mockGetInstanceStatus.mockRejectedValueOnce(new Error('timeout'));
+
+    const res = await request(app)
+      .get('/api/whatsapp/status/product-abc');
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('connected');
   });
 });
 

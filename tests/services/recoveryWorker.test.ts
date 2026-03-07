@@ -35,12 +35,14 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({ from: mockFrom })),
 }));
 
-const { mockSendMessage } = vi.hoisted(() => ({
+const { mockSendMessage, mockGetInstanceTokenByProduct } = vi.hoisted(() => ({
   mockSendMessage: vi.fn(),
+  mockGetInstanceTokenByProduct: vi.fn(),
 }));
 
 vi.mock('../../services/uazapiService', () => ({
   sendMessageUazapi: mockSendMessage,
+  getInstanceTokenByProduct: mockGetInstanceTokenByProduct,
 }));
 
 const { mockGenerateInitialMessage } = vi.hoisted(() => ({
@@ -82,11 +84,6 @@ const mockProduct = {
   name: 'Curso Python Pro',
 };
 
-const mockInstance = {
-  instance_key: 'instance_client-abc',
-  status: 'connected',
-};
-
 describe('recoveryWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -99,16 +96,17 @@ describe('recoveryWorker', () => {
     state.queryResults = [
       { data: [mockLead] },       // lead fetch
       { data: [mockProduct] },     // product fetch
-      { data: [mockInstance] },    // instance fetch
       { data: null },              // update
     ];
 
+    mockGetInstanceTokenByProduct.mockResolvedValueOnce('instance-token-abc');
     mockGenerateInitialMessage.mockResolvedValueOnce('Olá Carlos!');
 
     const result = await capturedProcessor({ data: { leadId: 'lead-001' } });
 
     expect(result).toBe('success_sent');
-    expect(mockSendMessage).toHaveBeenCalledWith('instance_client-abc', '5511999999999', 'Olá Carlos!');
+    expect(mockGetInstanceTokenByProduct).toHaveBeenCalledWith('prod-001');
+    expect(mockSendMessage).toHaveBeenCalledWith('instance-token-abc', '5511999999999', 'Olá Carlos!');
   });
 
   it('should return lead_not_found when lead missing', async () => {
@@ -143,8 +141,9 @@ describe('recoveryWorker', () => {
     state.queryResults = [
       { data: [mockLead] },
       { data: [mockProduct] },
-      { data: [] },
     ];
+
+    mockGetInstanceTokenByProduct.mockResolvedValueOnce(null);
 
     const result = await capturedProcessor({ data: { leadId: 'lead-001' } });
 

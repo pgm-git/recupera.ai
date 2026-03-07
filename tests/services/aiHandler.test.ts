@@ -32,8 +32,13 @@ const { mockSendMessage } = vi.hoisted(() => ({
   mockSendMessage: vi.fn(),
 }));
 
+const { mockGetInstanceTokenByKey } = vi.hoisted(() => ({
+  mockGetInstanceTokenByKey: vi.fn().mockResolvedValue('mock-instance-token'),
+}));
+
 vi.mock('../../services/uazapiService', () => ({
   sendMessageUazapi: mockSendMessage,
+  getInstanceTokenByKey: mockGetInstanceTokenByKey,
 }));
 
 import { cleanPhoneNumber, buildSystemPrompt, processConversationStep, generateInitialMessage } from '../../services/aiHandler';
@@ -133,7 +138,7 @@ describe('processConversationStep', () => {
 
     await processConversationStep('5511999999999', 'Oi, quanto custa?', 'instance_abc');
 
-    expect(mockSendMessage).toHaveBeenCalledWith('instance_abc', '5511999999999', 'Resposta da IA');
+    expect(mockSendMessage).toHaveBeenCalledWith('mock-instance-token', '5511999999999', 'Resposta da IA');
   });
 
   it('should skip if lead not found', async () => {

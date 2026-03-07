@@ -3,7 +3,7 @@ import { Product, Lead, Instance } from '../types';
 
 // URL do Backend (Node.js Express)
 // Usa path relativo pois o backend e frontend estão na mesma origem (porta 3000)
-const API_URL = ''; 
+const API_URL = '';
 
 /**
  * CLIENTS & AUTH
@@ -30,12 +30,12 @@ export const getDashboardData = async () => {
 };
 
 /**
- * INSTANCES (WhatsApp)
+ * INSTANCES (WhatsApp) — Per-Product
  * Comunica com o Backend para falar com a UAZAPI
  */
-export const connectInstance = async (clientId: string): Promise<Instance> => {
+export const connectInstance = async (productId: string): Promise<Instance> => {
   try {
-      const response = await fetch(`${API_URL}/api/whatsapp/connect/${clientId}`, {
+      const response = await fetch(`${API_URL}/api/whatsapp/connect/${productId}`, {
         method: 'POST',
       });
       if (!response.ok) {
@@ -53,9 +53,9 @@ export const connectInstance = async (clientId: string): Promise<Instance> => {
   }
 };
 
-export const checkInstanceStatus = async (clientId: string): Promise<Instance> => {
+export const checkInstanceStatus = async (productId: string): Promise<Instance> => {
   try {
-      const response = await fetch(`${API_URL}/api/whatsapp/status/${clientId}`);
+      const response = await fetch(`${API_URL}/api/whatsapp/status/${productId}`);
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Falha ao verificar status: ${response.status} - ${errorText}`);
@@ -74,4 +74,12 @@ export const checkInstanceStatus = async (clientId: string): Promise<Instance> =
 /**
  * PRODUCTS
  */
-// Products related data operations should be in dataService.ts
+export const deleteProduct = async (productId: string): Promise<void> => {
+  const response = await fetch(`${API_URL}/api/products/${productId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Falha ao deletar produto: ${response.status} - ${errorText}`);
+  }
+};

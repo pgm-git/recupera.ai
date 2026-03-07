@@ -1,19 +1,37 @@
 import React from 'react';
 import { Product } from '../types';
-import { Edit2, Power, MoreVertical, ShoppingBag } from 'lucide-react';
+import { Edit2, ShoppingBag, Smartphone, Trash2 } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onEdit: (product: Product) => void;
   onToggleStatus: (id: string) => void;
+  onConnect: (productId: string) => void;
+  onDelete: (productId: string) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onToggleStatus }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onToggleStatus, onConnect, onDelete }) => {
   const getPlatformColor = (p: string) => {
     switch(p) {
         case 'hotmart': return 'bg-orange-50 text-orange-600 border-orange-100';
         case 'kiwify': return 'bg-green-50 text-green-600 border-green-100';
         default: return 'bg-blue-50 text-blue-600 border-blue-100';
+    }
+  };
+
+  const getWhatsAppStatusColor = (status?: string) => {
+    switch(status) {
+      case 'connected': return 'bg-emerald-500';
+      case 'connecting': return 'bg-yellow-400';
+      default: return 'bg-slate-300';
+    }
+  };
+
+  const getWhatsAppStatusLabel = (status?: string) => {
+    switch(status) {
+      case 'connected': return 'WhatsApp Conectado';
+      case 'connecting': return 'Conectando...';
+      default: return 'WhatsApp Desconectado';
     }
   };
 
@@ -33,14 +51,40 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onToggleStat
             </div>
           </div>
           <div className="flex items-center space-x-1">
-             <button 
+             <button
                 onClick={() => onEdit(product)}
                 className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                 title="Editar Configurações"
              >
                 <Edit2 size={16} />
              </button>
+             <button
+                onClick={() => onDelete(product.id)}
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Excluir Produto"
+             >
+                <Trash2 size={16} />
+             </button>
           </div>
+        </div>
+
+        {/* WhatsApp Status */}
+        <div className="flex items-center justify-between mb-4 p-2.5 bg-slate-50 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${getWhatsAppStatusColor(product.whatsappStatus)}`} />
+            <span className="text-xs font-medium text-slate-600">
+              {getWhatsAppStatusLabel(product.whatsappStatus)}
+            </span>
+          </div>
+          {product.whatsappStatus !== 'connected' && (
+            <button
+              onClick={() => onConnect(product.id)}
+              className="flex items-center space-x-1 text-xs font-medium text-green-600 hover:text-green-700 hover:bg-green-50 px-2 py-1 rounded transition-colors"
+            >
+              <Smartphone size={14} />
+              <span>Conectar</span>
+            </button>
+          )}
         </div>
 
         <div className="space-y-3 mb-4">
@@ -54,7 +98,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onToggleStat
                     <span className="font-semibold text-emerald-700">{product.recoveredCount || 0}</span>
                 </div>
             </div>
-            
+
             <div className="flex justify-between text-sm pt-2 border-t border-slate-50">
                 <span className="text-slate-500">Faturamento:</span>
                 <span className="font-bold text-emerald-600">
@@ -68,12 +112,12 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onEdit, onToggleStat
                <div className={`w-2 h-2 rounded-full ${product.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                <span className="text-xs font-medium text-slate-600">{product.isActive ? 'Ativo' : 'Pausado'}</span>
            </div>
-           
-           <button 
+
+           <button
              onClick={() => onToggleStatus(product.id)}
              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors border ${
-                product.isActive 
-                ? 'text-red-600 border-red-200 hover:bg-red-50' 
+                product.isActive
+                ? 'text-red-600 border-red-200 hover:bg-red-50'
                 : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
              }`}
            >

@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import ProductCard from '../components/ProductCard';
 import ProductModal from '../components/ProductModal';
+import QRModal from '../components/QRModal';
 import { getProducts, toggleProductStatus, saveProductConfig } from '../services/dataService';
+import { checkInstanceStatus, deleteProduct } from '../services/apiService';
 import { Product } from '../types';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../contexts/ToastContext';
@@ -18,17 +20,31 @@ const Products: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'paused'>('all');
   const [platformFilter, setPlatformFilter] = useState<string>('all');
+  const [qrModalProductId, setQrModalProductId] = useState<string | null>(null);
+
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
+    const data = await getProducts();
+
+    // Fetch WhatsApp status for each product
+    const productsWithStatus = await Promise.all(
+      data.map(async (product) => {
+        try {
+          const statusData = await checkInstanceStatus(product.id);
+          return { ...product, whatsappStatus: statusData.status as Product['whatsappStatus'] };
+        } catch {
+          return { ...product, whatsappStatus: 'disconnected' as const };
+        }
+      })
+    );
+
+    setProducts(productsWithStatus);
+    setIsLoading(false);
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    const data = await getProducts();
-    setProducts(data);
-    setIsLoading(false);
-  };
+  }, [fetchProducts]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -68,6 +84,34 @@ const Products: React.FC = () => {
   const handleNewProduct = () => {
       setEditingProduct(undefined);
       setIsModalOpen(true);
+  };
+
+  const handleConnect = (productId: string) => {
+    setQrModalProductId(productId);
+  };
+
+  const handleQrModalClose = () => {
+    setQrModalProductId(null);
+    // Refresh products to pick up new WhatsApp status
+    fetchProducts();
+  };
+
+  const handleDelete = async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    if (!window.confirm(`Tem certeza que deseja excluir "${product.name}"? Esta ação também removerá a instância WhatsApp associada.`)) {
+      return;
+    }
+
+    try {
+      await deleteProduct(productId);
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      addToast('success', 'Produto excluído com sucesso');
+    } catch (error) {
+      console.error("Error deleting product", error);
+      addToast('error', 'Erro ao excluir produto');
+    }
   };
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
@@ -163,6 +207,8 @@ const Products: React.FC = () => {
                 product={product}
                 onEdit={handleEdit}
                 onToggleStatus={handleToggleStatus}
+                onConnect={handleConnect}
+                onDelete={handleDelete}
             />
           ))}
 
@@ -191,6 +237,14 @@ const Products: React.FC = () => {
         product={editingProduct}
         onSave={handleSaveProduct}
       />
+
+      {qrModalProductId && (
+        <QRModal
+          isOpen={true}
+          onClose={handleQrModalClose}
+          productId={qrModalProductId}
+        />
+      )}
     </div>
   );
 };

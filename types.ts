@@ -33,6 +33,7 @@ export interface Product {
   revenue?: number;
   updatedAt?: string;
   deletedAt?: string;
+  whatsappStatus?: 'disconnected' | 'connecting' | 'connected';
 }
 
 export interface Lead {

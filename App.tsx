@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
 import Onboarding from './pages/Onboarding';
 import Login from './pages/Login';
@@ -50,9 +51,10 @@ const App: React.FC = () => {
                         <Routes>
                           <Route path="/" element={<Dashboard />} />
                           <Route path="/products" element={<Products />} />
+                          <Route path="/leads" element={<Leads />} />
+                          <Route path="/leads/:leadId" element={<LeadDetail />} />
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/profile" element={<Profile />} />
-                          <Route path="/leads/:leadId" element={<LeadDetail />} />
                           <Route path="/onboarding" element={<Onboarding />} />
                           <Route path="*" element={<Navigate to="/" replace />} />
                         </Routes>

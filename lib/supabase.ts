@@ -7,7 +7,7 @@ if (!supabaseUrl || !supabaseKey) {
   console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '', {
+export const supabase = createClient(supabaseUrl || 'https://placeholder.supabase.co', supabaseKey || 'placeholder-key', {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
